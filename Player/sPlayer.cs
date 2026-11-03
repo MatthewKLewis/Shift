@@ -29,6 +29,7 @@ public class sPlayer : MonoBehaviour
     [Header("Movement (m/s)")]
     [SerializeField] private Transform orthoNorthRef;
     [SerializeField] private float moveSpeed = 1f;
+    [SerializeField] private float turnSharpness = 12f; //higher = snappier turn towards travel direction
     [SerializeField] private float gravity = -20f;
     private float verticalVelocity;
 
@@ -54,6 +55,7 @@ public class sPlayer : MonoBehaviour
         health = GetComponent<sHealth>();
         if (health == null) health = gameObject.AddComponent<sHealth>();
         if (mesh == null) mesh = transform.Find("Mesh");
+        if (orthoNorthRef == null) orthoNorthRef = transform.Find("OrthoNorthRef");
     }
 
     private void OnEnable()
@@ -68,6 +70,7 @@ public class sPlayer : MonoBehaviour
         Actions.OnPlayerDeath += HandlePlayerDeath;
         Actions.OnLevelComplete += HandleLevelComplete;
         health.OnDied += Die;
+        health.OnDamaged += BroadcastHealth;
     }
 
     private void OnDisable()
@@ -82,12 +85,19 @@ public class sPlayer : MonoBehaviour
         Actions.OnPlayerDeath -= HandlePlayerDeath;
         Actions.OnLevelComplete -= HandleLevelComplete;
         health.OnDied -= Die;
+        health.OnDamaged -= BroadcastHealth;
     }
 
 
     void Start()
     {
         ShiftModeTo(PLAYER_MODE.orthogonal, instant: true);
+        BroadcastHealth(health.Current);
+    }
+
+    void BroadcastHealth(int current)
+    {
+        Actions.OnPlayerHealthChanged?.Invoke(current, health.maxHealth);
     }
 
     void Update()
@@ -128,9 +138,13 @@ public class sPlayer : MonoBehaviour
         Vector2 stick = playerControls.Player.Move.ReadValue<Vector2>();
         Vector3 direction = orthoNorthRef.transform.TransformDirection(new Vector3(stick.x, 0f, stick.y));
 
-        //Face the way we're driving, so FPS mode starts looking that way
+        //Ease the body round to face the way we're driving, so FPS mode starts looking that way
         if (direction.sqrMagnitude > 0.01f)
-            mesh.rotation = Quaternion.LookRotation(direction, Vector3.up);
+        {
+            Quaternion target = Quaternion.LookRotation(direction, Vector3.up);
+            float t = 1f - Mathf.Exp(-turnSharpness * Time.deltaTime); //frame-rate independent lerp
+            mesh.rotation = Quaternion.Slerp(mesh.rotation, target, t);
+        }
 
         return direction * moveSpeed * Time.deltaTime;
     }
@@ -160,7 +174,10 @@ public class sPlayer : MonoBehaviour
             return;
         }
 
-        //console: Shift is needed for typing capitals, so you leave by typing "exit" instead
+        if (PlayerMode == PLAYER_MODE.console) {
+            ShiftModeTo(PLAYER_MODE.orthogonal);
+            return;
+        }
     }
 
     void HandleRequestShift(PLAYER_MODE newMode)

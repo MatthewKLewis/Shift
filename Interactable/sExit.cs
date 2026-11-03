@@ -12,6 +12,7 @@ public class sExit : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (other.GetComponentInParent<sPlayer>() == null) return;
+        print("Level complete!");
         Actions.OnLevelComplete?.Invoke();
     }
 }

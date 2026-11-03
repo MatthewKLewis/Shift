@@ -8,7 +8,7 @@ public class sTurret : sDevice
     [SerializeField] private Transform head;
     [SerializeField] private float range = 14f;
     [SerializeField] private float shotsPerSecond = 1f;
-    [SerializeField] private float damage = 1f;
+    [SerializeField] private int damage = 1;
     [SerializeField] private float turnSpeed = 180f;
     [SerializeField] private bool active = true;
 

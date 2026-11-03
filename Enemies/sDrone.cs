@@ -9,7 +9,7 @@ public class sDrone : MonoBehaviour
     [SerializeField] private float speed = 3f;
     [SerializeField] private float aggroRange = 12f;
     [SerializeField] private float hitRange = 1.6f;
-    [SerializeField] private float damage = 1f;
+    [SerializeField] private int damage = 1;
     [SerializeField] private float hitCooldown = 1f;
 
     private CharacterController cC;

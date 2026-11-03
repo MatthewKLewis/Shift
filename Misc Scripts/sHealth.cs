@@ -3,12 +3,12 @@ using UnityEngine;
 
 public class sHealth : MonoBehaviour
 {
-    public float maxHealth = 3f;
+    public int maxHealth = 3;
     public bool destroyOnDeath = true;
-    public float Current { get; private set; }
-    public bool IsDead => Current <= 0f;
+    public int Current { get; private set; }
+    public bool IsDead => Current <= 0;
 
-    public event Action<float> OnDamaged; //remaining health
+    public event Action<int> OnDamaged; //remaining health
     public event Action OnDied;
 
     private void Awake()
@@ -16,11 +16,11 @@ public class sHealth : MonoBehaviour
         Current = maxHealth;
     }
 
-    public void Damage(float amount)
+    public void Damage(int amount)
     {
         if (IsDead) return;
 
-        Current = Mathf.Max(0f, Current - amount);
+        Current = Mathf.Max(0, Current - amount);
         OnDamaged?.Invoke(Current);
 
         if (IsDead)

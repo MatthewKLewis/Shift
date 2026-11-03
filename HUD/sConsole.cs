@@ -61,6 +61,7 @@ public class sConsole : MonoBehaviour
 
         inputField.onFocusSelectAll = false;
         inputField.lineType = TMP_InputField.LineType.SingleLine;
+        inputField.onValidateInput = (text, index, c) => c == '\t' ? '\0' : c; //Tab is the mode shift key, don't type it
 
         lines.Clear();
         Print("SHIFT-OS v0.1  //  type 'help'");
@@ -199,7 +200,7 @@ public class sConsole : MonoBehaviour
     void Status()
     {
         if (playerHealth == null) return;
-        Print($"hull integrity {playerHealth.Current:0}/{playerHealth.maxHealth:0}");
+        Print($"hull integrity {playerHealth.Current}/{playerHealth.maxHealth}");
     }
 
     void RecallHistory(int direction)

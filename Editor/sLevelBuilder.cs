@@ -64,10 +64,10 @@ public static class sLevelBuilder
         exit.AddComponent<sExit>();
 
         //Player, HUD, GameManager prefabs
-        var player = Spawn("Assets/Player.prefab");
+        var player = Spawn("Assets/Player/Player.prefab");
         if (player != null) player.transform.position = new Vector3(0f, 0.1f, 2f);
-        Spawn("Assets/HUD.prefab");
-        Spawn("Assets/GameManager.prefab");
+        Spawn("Assets/HUD/HUD.prefab");
+        Spawn("Assets/GameManager/GameManager.prefab");
 
         EditorSceneManager.SaveScene(scene, ScenePath);
         AddToBuildSettings(ScenePath);
@@ -106,7 +106,7 @@ public static class sLevelBuilder
         barrel.transform.localPosition = new Vector3(0f, 0f, 0.8f);
         barrel.transform.localScale = new Vector3(0.2f / 0.9f, 0.2f / 0.6f, 1f / 0.9f); //undo head scale
 
-        root.AddComponent<sHealth>().maxHealth = 4f;
+        root.AddComponent<sHealth>().maxHealth = 4;
         var turret = root.AddComponent<sTurret>();
         turret.id = id;
         var so = new SerializedObject(turret);
@@ -132,7 +132,7 @@ public static class sLevelBuilder
         Object.DestroyImmediate(body.GetComponent<Collider>()); //the CharacterController is the hitbox
         body.GetComponent<Renderer>().sharedMaterial = mat;
 
-        root.AddComponent<sHealth>().maxHealth = 2f;
+        root.AddComponent<sHealth>().maxHealth = 2;
         root.AddComponent<sDrone>();
     }
 
