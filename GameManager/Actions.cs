@@ -12,6 +12,7 @@ public class Actions
     public static Action<PLAYER_MODE> OnShift;          //mode has changed
     public static Action<PLAYER_MODE> OnRequestShift;   //ask the player to change mode (e.g. console "exit")
     public static Action<string> OnConsoleLog;
+    public static Action<string, AudioClip> OnComms;       //message, sound (null = HUD's default comms sound)
     public static Action<int, int> OnPlayerHealthChanged;  //current, max
     public static Action<int, int, bool> OnAmmoChanged;        //in magazine, magazine size, reloading
 }
