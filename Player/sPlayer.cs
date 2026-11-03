@@ -237,6 +237,7 @@ public class sPlayer : MonoBehaviour
                 Cam.transform.localPosition = Vector3.up;
                 Cam.transform.localRotation = Quaternion.Euler(fpsCameraFacing);
                 Cam.orthographic = false;
+                Cam.nearClipPlane = 1f;
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
                 Actions.OnShift?.Invoke(newMode);

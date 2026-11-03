@@ -20,6 +20,17 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float fadeDuration = 0.3f;
     [SerializeField] private float minimumLoadTime = 1f; //keeps the screen up long enough to read / animate
 
+    [Space(4)]
+    [Header("Music")]
+    [SerializeField] private AudioClip startingMusic;
+    [SerializeField, Range(0f, 1f)] private float musicVolume = 0.6f;
+    [SerializeField] private float musicFadeTime = 1f;
+
+    private readonly AudioSource[] musicSources = new AudioSource[2]; //two so tracks can crossfade
+    private int activeMusic;
+    private Coroutine musicFade;
+    private bool stoppingMusic;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -32,6 +43,23 @@ public class GameManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         SetLoadingScreen(0f);
+
+        for (int i = 0; i < musicSources.Length; i++)
+        {
+            var source = gameObject.AddComponent<AudioSource>();
+            source.playOnAwake = false;
+            source.loop = true;
+            source.spatialBlend = 0f;
+            source.volume = 0f;
+            source.priority = 0; //never culled
+            musicSources[i] = source;
+        }
+    }
+
+    private void Start()
+    {
+        //Fallback only - an sLevelMusic in the first scene may already have started its track
+        if (startingMusic != null && CurrentMusic == null) PlayMusic(startingMusic, 0f);
     }
 
     private void OnDestroy()
@@ -144,6 +172,94 @@ public class GameManager : MonoBehaviour
         loadingScreen.blocksRaycasts = alpha > 0f;
         loadingScreen.gameObject.SetActive(alpha > 0f);
     }
+
+    #endregion
+
+    #region Music
+
+    public AudioClip CurrentMusic => stoppingMusic ? null : musicSources[activeMusic].clip;
+    public bool IsMusicPlaying => !stoppingMusic && musicSources[activeMusic].isPlaying;
+
+    //Crossfades to a new track. Asking for the track that's already playing does nothing,
+    //so a level can request its music on every reload without restarting it.
+    //fadeTime < 0 uses the inspector default; 0 cuts instantly.
+    public void PlayMusic(AudioClip clip, float fadeTime = -1f)
+    {
+        if (clip == null)
+        {
+            StopMusic(fadeTime);
+            return;
+        }
+
+        if (clip == CurrentMusic && musicSources[activeMusic].isPlaying) return;
+
+        activeMusic = 1 - activeMusic;
+        var incoming = musicSources[activeMusic];
+        incoming.clip = clip;
+        incoming.volume = 0f;
+        incoming.Play();
+
+        stoppingMusic = false;
+        StartMusicFade(fadeTime);
+    }
+
+    public void StopMusic(float fadeTime = -1f)
+    {
+        stoppingMusic = true;
+        StartMusicFade(fadeTime);
+    }
+
+    public void PauseMusic()
+    {
+        foreach (var source in musicSources) source.Pause();
+    }
+
+    public void ResumeMusic()
+    {
+        foreach (var source in musicSources)
+            if (source.clip != null) source.UnPause();
+    }
+
+    public void SetMusicVolume(float volume)
+    {
+        musicVolume = Mathf.Clamp01(volume);
+        if (musicFade == null && !stoppingMusic) musicSources[activeMusic].volume = musicVolume;
+    }
+
+    void StartMusicFade(float fadeTime)
+    {
+        if (musicFade != null) StopCoroutine(musicFade);
+        musicFade = StartCoroutine(MusicFadeRoutine(fadeTime < 0f ? musicFadeTime : fadeTime));
+    }
+
+    IEnumerator MusicFadeRoutine(float fadeTime)
+    {
+        //Fade every source from wherever it is now, so interrupting a fade mid-way is smooth
+        var startVolumes = new float[musicSources.Length];
+        for (int i = 0; i < musicSources.Length; i++) startVolumes[i] = musicSources[i].volume;
+
+        for (float t = 0f; t < fadeTime; t += Time.unscaledDeltaTime) //unscaled: keeps fading while paused
+        {
+            for (int i = 0; i < musicSources.Length; i++)
+                musicSources[i].volume = Mathf.Lerp(startVolumes[i], TargetMusicVolume(i), t / fadeTime);
+            yield return null;
+        }
+
+        for (int i = 0; i < musicSources.Length; i++)
+        {
+            musicSources[i].volume = TargetMusicVolume(i);
+            bool fadedOut = stoppingMusic || i != activeMusic;
+            if (fadedOut)
+            {
+                musicSources[i].Stop();
+                musicSources[i].clip = null;
+            }
+        }
+
+        musicFade = null;
+    }
+
+    float TargetMusicVolume(int source) => !stoppingMusic && source == activeMusic ? musicVolume : 0f;
 
     #endregion
 

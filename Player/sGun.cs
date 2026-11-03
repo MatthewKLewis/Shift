@@ -16,6 +16,13 @@ public class sGun : MonoBehaviour
     [SerializeField] private int magazineSize = 12;
     [SerializeField] private float reloadTime = 1.5f;
 
+    [Space(4)]
+    [Header("Audio")]
+    [SerializeField] private AudioSource audioSource;  //added at runtime (2D) if left empty
+    [SerializeField] private AudioClip shotSound;
+    [SerializeField] private AudioClip reloadSound;
+    [SerializeField] private float shotPitchVariance = 0.08f;
+
     private sPlayer player;
     private InputSystem_Actions playerControls;
     private float nextShotTime;
@@ -27,6 +34,7 @@ public class sGun : MonoBehaviour
         player = GetComponent<sPlayer>();
         playerControls = new InputSystem_Actions();
         inMagazine = magazineSize;
+        audioSource = sUtil.SetupAudio(gameObject, audioSource, spatial: false);
     }
 
     private void OnEnable() => playerControls.Player.Attack.Enable();
@@ -58,6 +66,7 @@ public class sGun : MonoBehaviour
     {
         nextShotTime = Time.time + 1f / shotsPerSecond;
         inMagazine--;
+        sUtil.PlaySound(audioSource, shotSound, pitchVariance: shotPitchVariance);
 
         Transform cam = player.Cam.transform;
         var ray = new Ray(cam.position, cam.forward);
@@ -80,6 +89,7 @@ public class sGun : MonoBehaviour
     {
         reloading = true;
         BroadcastAmmo();
+        sUtil.PlaySound(audioSource, reloadSound);
 
         //Reload carries on while you're in other modes - shifting away is a way to wait it out
         yield return new WaitForSeconds(reloadTime);

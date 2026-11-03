@@ -12,6 +12,13 @@ public class sDrone : MonoBehaviour
     [SerializeField] private int damage = 1;
     [SerializeField] private float hitCooldown = 1f;
 
+    [Space(4)]
+    [Header("Audio")]
+    [SerializeField] private AudioSource audioSource;  //added at runtime (3D) if left empty
+    [SerializeField] private AudioClip humLoop;        //loops once the drone is chasing
+    [SerializeField] private AudioClip alertSound;
+    [SerializeField] private AudioClip hitSound;
+
     private CharacterController cC;
     private sPlayer player;
     private float nextHitTime;
@@ -20,6 +27,7 @@ public class sDrone : MonoBehaviour
     private void Awake()
     {
         cC = GetComponent<CharacterController>();
+        audioSource = sUtil.SetupAudio(gameObject, audioSource, spatial: true);
     }
 
     private void Start()
@@ -41,6 +49,14 @@ public class sDrone : MonoBehaviour
         {
             alerted = true;
             Actions.OnConsoleLog?.Invoke("WARNING: hostile drone approaching");
+            sUtil.PlaySound(audioSource, alertSound);
+
+            if (humLoop != null)
+            {
+                audioSource.clip = humLoop;
+                audioSource.loop = true;
+                audioSource.Play();
+            }
         }
 
         if (distance > hitRange)
@@ -53,6 +69,7 @@ public class sDrone : MonoBehaviour
             nextHitTime = Time.time + hitCooldown;
             player.GetComponent<sHealth>().Damage(damage);
             Actions.OnConsoleLog?.Invoke("WARNING: collision damage");
+            sUtil.PlaySound(audioSource, hitSound);
         }
     }
 }

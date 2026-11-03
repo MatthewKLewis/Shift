@@ -12,6 +12,13 @@ public class sHealth : MonoBehaviour
     public event Action<int> OnHealthChanged; //remaining health, after damage or healing
     public event Action OnDied;
 
+    [Space(4)]
+    [Header("Audio")]
+    [SerializeField] private AudioClip hurtSound;
+    [SerializeField] private AudioClip deathSound;  //played from a temporary object, so it survives Destroy
+    [SerializeField] private AudioClip healSound;
+    [SerializeField] private bool spatialSound = true; //turn off for the player (heard "inside the robot")
+
     private void Awake()
     {
         Current = maxHealth;
@@ -26,8 +33,13 @@ public class sHealth : MonoBehaviour
 
         if (IsDead)
         {
+            sUtil.PlaySoundAt(deathSound, transform.position, spatial: spatialSound);
             OnDied?.Invoke();
             if (destroyOnDeath) Destroy(gameObject);
+        }
+        else
+        {
+            sUtil.PlaySoundAt(hurtSound, transform.position, spatial: spatialSound);
         }
     }
 
@@ -37,5 +49,6 @@ public class sHealth : MonoBehaviour
 
         Current = Mathf.Min(maxHealth, Current + amount);
         OnHealthChanged?.Invoke(Current);
+        sUtil.PlaySoundAt(healSound, transform.position, spatial: spatialSound);
     }
 }
