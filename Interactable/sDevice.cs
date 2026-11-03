@@ -10,7 +10,7 @@ public abstract class sDevice : MonoBehaviour
 
     public string id = "device_1";
     [SerializeField] private bool showLabel = true;
-    [SerializeField] private float labelHeight = 2.5f;
+    [SerializeField] private float labelHeight = 4f;
 
     public abstract string Kind { get; }
     public abstract string Status { get; }
@@ -32,10 +32,14 @@ public abstract class sDevice : MonoBehaviour
         label = labelObject.transform;
         label.SetParent(transform, false);
         label.position = transform.position + Vector3.up * labelHeight;
+        labelObject.AddComponent<sBillboard>();
 
         var text = labelObject.AddComponent<TextMeshPro>();
+
+        if (GameManager.Instance != null && GameManager.Instance.defaultFont != null)
+            text.font = GameManager.Instance.defaultFont;
         text.text = id;
-        text.fontSize = 4f;
+        text.fontSize = 8f;
         text.alignment = TextAlignmentOptions.Center;
         text.color = new Color(0.4f, 1f, 0.5f);
         text.rectTransform.sizeDelta = new Vector2(6f, 1f);

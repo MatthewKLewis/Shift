@@ -10,6 +10,8 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
     public bool IsLoading { get; private set; }
 
+    public TMPro.TMP_FontAsset defaultFont;
+
     [SerializeField] private float restartDelay = 3f;   //time to read the console before reboot/next level
 
     [Space(4)]
