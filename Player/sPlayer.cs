@@ -70,7 +70,7 @@ public class sPlayer : MonoBehaviour
         Actions.OnPlayerDeath += HandlePlayerDeath;
         Actions.OnLevelComplete += HandleLevelComplete;
         health.OnDied += Die;
-        health.OnDamaged += BroadcastHealth;
+        health.OnHealthChanged += BroadcastHealth;
     }
 
     private void OnDisable()
@@ -85,7 +85,7 @@ public class sPlayer : MonoBehaviour
         Actions.OnPlayerDeath -= HandlePlayerDeath;
         Actions.OnLevelComplete -= HandleLevelComplete;
         health.OnDied -= Die;
-        health.OnDamaged -= BroadcastHealth;
+        health.OnHealthChanged -= BroadcastHealth;
     }
 
 

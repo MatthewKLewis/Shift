@@ -148,18 +148,33 @@ public class sConsole : MonoBehaviour
             return;
         }
 
-        //Anything else is "<verb> <device>", e.g. "open door_1", "disable turret_a"
-        if (args.Length != 1)
+        //Anything else is "<verb> <device>", e.g. "open door_1", "disable turret_a",
+        //or just "<verb>" to use the nearest device in range that supports it, e.g. "dispense"
+        if (args.Length > 1)
         {
             Print($"unknown command '{verb}'. type 'help'");
             return;
         }
 
-        sDevice device = sDevice.All.FirstOrDefault(d => d.id.ToLowerInvariant() == args[0]);
-        if (device == null)
+        sDevice device;
+        if (args.Length == 0)
         {
-            Print($"no device '{args[0]}'");
-            return;
+            device = NearestDeviceWithVerb(verb);
+            if (device == null)
+            {
+                bool anyDeviceHasVerb = sDevice.All.Any(d => d.Verbs.Contains(verb));
+                Print(anyDeviceHasVerb ? $"{verb}: no device in range" : $"unknown command '{verb}'. type 'help'");
+                return;
+            }
+        }
+        else
+        {
+            device = sDevice.All.FirstOrDefault(d => d.id.ToLowerInvariant() == args[0]);
+            if (device == null)
+            {
+                Print($"no device '{args[0]}'");
+                return;
+            }
         }
 
         if (player != null && Vector3.Distance(player.transform.position, device.transform.position) > deviceRange)
@@ -177,6 +192,20 @@ public class sConsole : MonoBehaviour
         foreach (var command in commands)
             Print($"  {command.Key,-8}{command.Value.help}");
         Print("  <action> <device>   e.g. open door_1");
+        Print("  <action>            nearest device in range, e.g. dispense");
+    }
+
+    sDevice NearestDeviceWithVerb(string verb)
+    {
+        if (player == null) return null;
+
+        return sDevice.All
+            .Where(d => d.Verbs.Contains(verb))
+            .Select(d => (device: d, distance: Vector3.Distance(player.transform.position, d.transform.position)))
+            .Where(d => d.distance <= deviceRange)
+            .OrderBy(d => d.distance)
+            .Select(d => d.device)
+            .FirstOrDefault();
     }
 
     void Scan()

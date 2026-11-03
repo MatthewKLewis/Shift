@@ -7,6 +7,7 @@ using UnityEngine;
 //
 //  z 0-15   START      door_1 blocks the way          -> console: "open door_1"
 //  z 15-35  TURRET     turret_a covers door_2         -> console: "disable turret_a", or shoot it
+//                      vend_1 on the west wall        -> console: "dispense", then drive over the kit
 //  z 35-55  DRONES     two drones rush you            -> FPS: shoot them (they can't be hacked)
 //  z 52     EXIT pad
 public static class sLevelBuilder
@@ -37,6 +38,7 @@ public static class sLevelBuilder
         var doorMat = MakeMaterial("Door", new Color(0.9f, 0.55f, 0.15f));
         var enemyMat = MakeMaterial("Enemy", new Color(0.85f, 0.15f, 0.15f));
         var exitMat = MakeMaterial("Exit", new Color(0.2f, 0.9f, 0.4f));
+        var vendorMat = MakeMaterial("Vendor", new Color(0.2f, 0.5f, 0.95f));
 
         var level = new GameObject("===TEST LEVEL===").transform;
 
@@ -54,6 +56,12 @@ public static class sLevelBuilder
         Box("Cover", level, new Vector3(-4f, 0.75f, 24f), new Vector3(3f, 1.5f, 1f), wallMat);
         Turret("turret_a", level, new Vector3(6f, 0f, 31f), enemyMat);
         DoorWall("door_2", level, 35f, wallMat, doorMat);
+
+        //A vending machine against the west wall, facing into the room
+        var vendor = Box("vend_1", level, new Vector3(-9.2f, 1f, 19f), new Vector3(1f, 2f, 1.5f), vendorMat);
+        vendor.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+        vendor.transform.localScale = new Vector3(1.5f, 2f, 1f); //width along the wall once rotated
+        vendor.AddComponent<sVendingMachine>().id = "vend_1";
 
         //Section 3: drones and the exit
         Drone(level, new Vector3(-5f, 0f, 46f), enemyMat);
