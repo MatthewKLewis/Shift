@@ -22,6 +22,8 @@ public class sPlayer : MonoBehaviour
 
     [SerializeField] private Transform orthoCamGimbal;
     [SerializeField] private Transform mesh;
+    private Renderer[] meshRenderers;
+    private UnityEngine.Rendering.ShadowCastingMode[] meshShadowModes;
     private InputAction lookInput;
     private Vector3 fpsCameraFacing;
 
@@ -32,6 +34,14 @@ public class sPlayer : MonoBehaviour
     [SerializeField] private float turnSharpness = 12f; //higher = snappier turn towards travel direction
     [SerializeField] private float gravity = -20f;
     private float verticalVelocity;
+
+    [Space(4)]
+    [Header("Ortho camera rotation (Q / E)")]
+    [SerializeField] private float cameraRotateStep = 90f;      //degrees per key press
+    [SerializeField] private float cameraRotateSharpness = 10f; //higher = snappier swing
+    private float orthoYaw, orthoYawTarget;
+    private Vector3 gimbalBasePosition;
+    private Quaternion gimbalBaseRotation, northBaseRotation;
 
     [Space(4)]
     [Header("Look (degrees per mouse pixel)")]
@@ -56,6 +66,16 @@ public class sPlayer : MonoBehaviour
         if (health == null) health = gameObject.AddComponent<sHealth>();
         if (mesh == null) mesh = transform.Find("Mesh");
         if (orthoNorthRef == null) orthoNorthRef = transform.Find("OrthoNorthRef");
+
+        //Cache the body's renderers so FPS mode can hide them (but not the flashlight)
+        meshRenderers = mesh.GetComponentsInChildren<Renderer>(true);
+        meshShadowModes = new UnityEngine.Rendering.ShadowCastingMode[meshRenderers.Length];
+        for (int i = 0; i < meshRenderers.Length; i++) meshShadowModes[i] = meshRenderers[i].shadowCastingMode;
+
+        //Rotation is applied as an offset from the prefab's layout
+        gimbalBasePosition = orthoCamGimbal.localPosition;
+        gimbalBaseRotation = orthoCamGimbal.localRotation;
+        northBaseRotation = orthoNorthRef.localRotation;
     }
 
     private void OnEnable()
@@ -64,6 +84,7 @@ public class sPlayer : MonoBehaviour
         var input = playerControls.Player;
         input.Enable();
         input.Shift.performed += Shift;
+        input.RotateCamera.performed += RotateCamera;
 
         //Action Handlers
         Actions.OnRequestShift += HandleRequestShift;
@@ -78,6 +99,7 @@ public class sPlayer : MonoBehaviour
         //Disable Inputs
         var input = playerControls.Player;
         input.Shift.performed -= Shift;
+        input.RotateCamera.performed -= RotateCamera;
         input.Disable();
 
         //Action Handlers
@@ -103,6 +125,8 @@ public class sPlayer : MonoBehaviour
     void Update()
     {
         if (IsDead) return;
+
+        UpdateOrthoCamera();
 
         Vector3 movement = Vector3.zero;
 
@@ -147,6 +171,37 @@ public class sPlayer : MonoBehaviour
         }
 
         return direction * moveSpeed * Time.deltaTime;
+    }
+
+    void RotateCamera(InputAction.CallbackContext context)
+    {
+        if (IsDead || levelComplete || IsShifting || PlayerMode != PLAYER_MODE.orthogonal) return;
+
+        float direction = context.ReadValue<float>(); //Q = -1, E = +1
+        if (Mathf.Abs(direction) < 0.5f) return;      //key released
+        orthoYawTarget += Mathf.Sign(direction) * cameraRotateStep;
+    }
+
+    //Swings the gimbal and the movement reference round the robot together,
+    //so WASD stays screen-relative whichever way the camera faces
+    void UpdateOrthoCamera()
+    {
+        if (Mathf.Approximately(orthoYaw, orthoYawTarget)) return;
+
+        float t = 1f - Mathf.Exp(-cameraRotateSharpness * Time.deltaTime);
+        orthoYaw = Mathf.Lerp(orthoYaw, orthoYawTarget, t);
+        if (Mathf.Abs(orthoYawTarget - orthoYaw) < 0.05f) orthoYaw = orthoYawTarget;
+
+        Quaternion yaw = Quaternion.Euler(0f, orthoYaw, 0f);
+        orthoCamGimbal.localPosition = yaw * gimbalBasePosition;
+        orthoCamGimbal.localRotation = yaw * gimbalBaseRotation;
+        orthoNorthRef.localRotation = yaw * northBaseRotation;
+
+        if (PlayerMode == PLAYER_MODE.orthogonal)
+        {
+            Cam.transform.localPosition = orthoCamGimbal.localPosition;
+            Cam.transform.localRotation = orthoCamGimbal.localRotation;
+        }
     }
 
     void Look()
@@ -217,9 +272,22 @@ public class sPlayer : MonoBehaviour
         ApplyMode(newMode);
     }
 
+    //Hidden = shadows only, so the robot still casts a shadow you can see in FPS mode
+    void SetMeshVisible(bool visible)
+    {
+        for (int i = 0; i < meshRenderers.Length; i++)
+        {
+            if (meshRenderers[i] == null) continue;
+            meshRenderers[i].shadowCastingMode = visible
+                ? meshShadowModes[i]
+                : UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+        }
+    }
+
     void ApplyMode(PLAYER_MODE newMode)
     {
         PlayerMode = newMode;
+        SetMeshVisible(newMode != PLAYER_MODE.firstPerson);
 
         switch (newMode)
         {
@@ -237,7 +305,6 @@ public class sPlayer : MonoBehaviour
                 Cam.transform.localPosition = Vector3.up;
                 Cam.transform.localRotation = Quaternion.Euler(fpsCameraFacing);
                 Cam.orthographic = false;
-                Cam.nearClipPlane = 1f;
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
                 Actions.OnShift?.Invoke(newMode);

@@ -148,7 +148,7 @@ public class sConsole : MonoBehaviour
             return;
         }
 
-        //Anything else is "<verb> <device>", e.g. "open door_1", "disable turret_a",
+        //Anything else is "<verb> <device>", e.g. "unlock door_1", "disable turret_a",
         //or just "<verb>" to use the nearest device in range that supports it, e.g. "dispense"
         if (args.Length > 1)
         {
@@ -191,7 +191,7 @@ public class sConsole : MonoBehaviour
     {
         foreach (var command in commands)
             Print($"  {command.Key,-8}{command.Value.help}");
-        Print("  <action> <device>   e.g. open door_1");
+        Print("  <action> <device>   e.g. unlock door_1");
         Print("  <action>            nearest device in range, e.g. dispense");
     }
 
