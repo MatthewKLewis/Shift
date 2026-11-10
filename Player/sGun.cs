@@ -48,7 +48,8 @@ public class sGun : MonoBehaviour
     void Update()
     {
         //Only the FPS mode can shoot - that's the trade-off for standing still
-        if (player.IsDead || player.IsShifting || player.PlayerMode != PLAYER_MODE.firstPerson) return;
+        if (player.IsDead) return;
+
         if (reloading) return;
 
         //No Reload action in the input map yet, so read R directly

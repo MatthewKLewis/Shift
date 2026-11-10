@@ -73,13 +73,6 @@ public class sHUD : MonoBehaviour
                 healthTransform.localScale = Vector3.one;
                 break;
 
-            case PLAYER_MODE.firstPerson:
-                consoleTransform.localScale = Vector3.zero;
-                crosshairTransform.localScale = Vector3.one;
-                ammoTransform.localScale = Vector3.one;
-                healthTransform.localScale = Vector3.zero;
-                break;
-
             case PLAYER_MODE.console:
                 consoleTransform.localScale = Vector3.one;
                 crosshairTransform.localScale = Vector3.zero;

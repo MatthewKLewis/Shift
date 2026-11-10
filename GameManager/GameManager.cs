@@ -58,6 +58,10 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        //No cursor needed for game at all!
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+
         //Fallback only - an sLevelMusic in the first scene may already have started its track
         if (startingMusic != null && CurrentMusic == null) PlayMusic(startingMusic, 0f);
     }

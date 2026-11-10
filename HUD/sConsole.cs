@@ -32,7 +32,7 @@ public class sConsole : MonoBehaviour
             ["clear"] = ("clear the screen",                  _ => { lines.Clear(); Refresh(); }),
             ["scan"]  = ("list devices in range",             _ => Scan()),
             ["status"]= ("show hull integrity",               _ => Status()),
-            ["exit"]  = ("close the console",                 _ => Actions.OnRequestShift?.Invoke(PLAYER_MODE.orthogonal)),
+            ["exit"]  = ("close the console",                 _ => Actions.OnShift?.Invoke(PLAYER_MODE.orthogonal)),
         };
     }
 

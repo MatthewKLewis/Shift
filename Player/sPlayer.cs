@@ -2,11 +2,9 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-
 public enum PLAYER_MODE
 {
     orthogonal,
-    firstPerson,
     console,
 }
 
@@ -22,9 +20,7 @@ public class sPlayer : MonoBehaviour
 
     [SerializeField] private Transform orthoCamGimbal;
     [SerializeField] private Transform mesh;
-    private Renderer[] meshRenderers;
-    private UnityEngine.Rendering.ShadowCastingMode[] meshShadowModes;
-    private InputAction lookInput;
+    
     private Vector3 fpsCameraFacing;
 
     [Space(4)]
@@ -43,34 +39,20 @@ public class sPlayer : MonoBehaviour
     private Vector3 gimbalBasePosition;
     private Quaternion gimbalBaseRotation, northBaseRotation;
 
-    [Space(4)]
-    [Header("Look (degrees per mouse pixel)")]
-    [SerializeField] private float lookSensitivity = 0.15f;
-
-    [Space(4)]
-    [Header("Shift transition (s)")]
-    [SerializeField] private float shiftDuration = 0.25f;
-    public bool IsShifting { get; private set; }
-    private Coroutine shiftRoutine;
-
     private InputSystem_Actions playerControls;
+
     private sHealth health;
     private bool levelComplete;
 
     private void Awake()
     {
         playerControls = new InputSystem_Actions();
-        lookInput = playerControls.Player.Look;
+
         //RequireComponent doesn't retrofit existing prefabs
         health = GetComponent<sHealth>();
         if (health == null) health = gameObject.AddComponent<sHealth>();
         if (mesh == null) mesh = transform.Find("Mesh");
         if (orthoNorthRef == null) orthoNorthRef = transform.Find("OrthoNorthRef");
-
-        //Cache the body's renderers so FPS mode can hide them (but not the flashlight)
-        meshRenderers = mesh.GetComponentsInChildren<Renderer>(true);
-        meshShadowModes = new UnityEngine.Rendering.ShadowCastingMode[meshRenderers.Length];
-        for (int i = 0; i < meshRenderers.Length; i++) meshShadowModes[i] = meshRenderers[i].shadowCastingMode;
 
         //Rotation is applied as an offset from the prefab's layout
         gimbalBasePosition = orthoCamGimbal.localPosition;
@@ -87,7 +69,6 @@ public class sPlayer : MonoBehaviour
         input.RotateCamera.performed += RotateCamera;
 
         //Action Handlers
-        Actions.OnRequestShift += HandleRequestShift;
         Actions.OnPlayerDeath += HandlePlayerDeath;
         Actions.OnLevelComplete += HandleLevelComplete;
         health.OnDied += Die;
@@ -103,7 +84,6 @@ public class sPlayer : MonoBehaviour
         input.Disable();
 
         //Action Handlers
-        Actions.OnRequestShift -= HandleRequestShift;
         Actions.OnPlayerDeath -= HandlePlayerDeath;
         Actions.OnLevelComplete -= HandleLevelComplete;
         health.OnDied -= Die;
@@ -113,7 +93,7 @@ public class sPlayer : MonoBehaviour
 
     void Start()
     {
-        ShiftModeTo(PLAYER_MODE.orthogonal, instant: true);
+        ApplyMode(PLAYER_MODE.orthogonal);
         BroadcastHealth(health.Current);
     }
 
@@ -126,42 +106,12 @@ public class sPlayer : MonoBehaviour
     {
         if (IsDead) return;
 
+        //Camera
         UpdateOrthoCamera();
 
-        Vector3 movement = Vector3.zero;
-
-        //Mid-shift: no driving or looking, but gravity still applies
-        if (!IsShifting) switch (PlayerMode)
-        {
-            case PLAYER_MODE.orthogonal:
-                movement = Movement();
-                break;
-
-            case PLAYER_MODE.firstPerson:
-                Look();
-                break;
-
-            case PLAYER_MODE.console:
-                //no movement or looking, just "console commands"
-                break;
-
-            default:
-                break;
-        }
-
-        //Gravity applies in every mode - the robot doesn't float when you look away
-        if (cC.isGrounded && verticalVelocity < 0f) verticalVelocity = -2f;
-        verticalVelocity += gravity * Time.deltaTime;
-        movement.y = verticalVelocity * Time.deltaTime;
-
-        cC.Move(movement);
-    }
-
-    Vector3 Movement()
-    {
+        //Movement
         Vector2 stick = playerControls.Player.Move.ReadValue<Vector2>();
         Vector3 direction = orthoNorthRef.transform.TransformDirection(new Vector3(stick.x, 0f, stick.y));
-
         //Ease the body round to face the way we're driving, so FPS mode starts looking that way
         if (direction.sqrMagnitude > 0.01f)
         {
@@ -169,13 +119,18 @@ public class sPlayer : MonoBehaviour
             float t = 1f - Mathf.Exp(-turnSharpness * Time.deltaTime); //frame-rate independent lerp
             mesh.rotation = Quaternion.Slerp(mesh.rotation, target, t);
         }
-
-        return direction * moveSpeed * Time.deltaTime;
+        Vector3 movement = direction * moveSpeed * Time.deltaTime;
+        //Gravity applies in every mode - the robot doesn't float when you look away
+        if (cC.isGrounded && verticalVelocity < 0f) verticalVelocity = -2f;
+        verticalVelocity += gravity * Time.deltaTime;
+        movement.y = verticalVelocity * Time.deltaTime;
+        cC.Move(movement);
     }
+
 
     void RotateCamera(InputAction.CallbackContext context)
     {
-        if (IsDead || levelComplete || IsShifting || PlayerMode != PLAYER_MODE.orthogonal) return;
+        if (IsDead || levelComplete || PlayerMode != PLAYER_MODE.orthogonal) return;
 
         float direction = context.ReadValue<float>(); //Q = -1, E = +1
         if (Mathf.Abs(direction) < 0.5f) return;      //key released
@@ -204,90 +159,24 @@ public class sPlayer : MonoBehaviour
         }
     }
 
-    void Look()
-    {
-        Vector2 look = lookInput.ReadValue<Vector2>() * lookSensitivity;
-        fpsCameraFacing += new Vector3(-look.y, look.x);
-        fpsCameraFacing = new Vector3(Mathf.Clamp(fpsCameraFacing.x, -60f, 60f), fpsCameraFacing.y, 0f); //no roll
-        Cam.transform.localRotation = Quaternion.Euler(fpsCameraFacing);
-
-        //Turn the body (not the root - that would spin the ortho camera gimbal too)
-        mesh.localRotation = Quaternion.Euler(0f, fpsCameraFacing.y, 0f);
-    }
-
     void Shift(InputAction.CallbackContext context)
     {
-        if (IsDead || levelComplete || IsShifting) return;
+        if (IsDead || levelComplete) return;
 
         if (PlayerMode == PLAYER_MODE.orthogonal) {
-            ShiftModeTo(PLAYER_MODE.firstPerson);
-            return;
-        }
-
-        if (PlayerMode == PLAYER_MODE.firstPerson) {
-            ShiftModeTo(PLAYER_MODE.console);
+            ApplyMode(PLAYER_MODE.console);
             return;
         }
 
         if (PlayerMode == PLAYER_MODE.console) {
-            ShiftModeTo(PLAYER_MODE.orthogonal);
+            ApplyMode(PLAYER_MODE.orthogonal);
             return;
-        }
-    }
-
-    void HandleRequestShift(PLAYER_MODE newMode)
-    {
-        if (IsDead || levelComplete || IsShifting) return;
-        ShiftModeTo(newMode);
-    }
-
-    void ShiftModeTo(PLAYER_MODE newMode, bool instant = false)
-    {
-        if (shiftRoutine != null) StopCoroutine(shiftRoutine);
-        shiftRoutine = null;
-        IsShifting = false;
-
-        if (instant)
-        {
-            ApplyMode(newMode);
-            return;
-        }
-
-        shiftRoutine = StartCoroutine(ShiftRoutine(newMode));
-    }
-
-    IEnumerator ShiftRoutine(PLAYER_MODE newMode)
-    {
-        IsShifting = true;
-        Actions.OnShiftStarted?.Invoke(PlayerMode, newMode);
-
-        //Transition animations go here, before the camera changes, e.g.
-        //  orthogonal -> firstPerson: plant feet, raise turret
-        //  * -> console: scanlines blink (sHUD can listen to OnShiftStarted)
-        //Swap the wait for "yield return <your animation coroutine>" when they exist.
-        yield return new WaitForSeconds(shiftDuration);
-
-        IsShifting = false;
-        shiftRoutine = null;
-        ApplyMode(newMode);
-    }
-
-    //Hidden = shadows only, so the robot still casts a shadow you can see in FPS mode
-    void SetMeshVisible(bool visible)
-    {
-        for (int i = 0; i < meshRenderers.Length; i++)
-        {
-            if (meshRenderers[i] == null) continue;
-            meshRenderers[i].shadowCastingMode = visible
-                ? meshShadowModes[i]
-                : UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
         }
     }
 
     void ApplyMode(PLAYER_MODE newMode)
     {
         PlayerMode = newMode;
-        SetMeshVisible(newMode != PLAYER_MODE.firstPerson);
 
         switch (newMode)
         {
@@ -295,24 +184,11 @@ public class sPlayer : MonoBehaviour
                 Cam.transform.localPosition = orthoCamGimbal.localPosition;
                 Cam.transform.localRotation = orthoCamGimbal.localRotation;
                 Cam.orthographic = true;
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-                Actions.OnShift?.Invoke(newMode);
-                break;
 
-            case PLAYER_MODE.firstPerson:
-                fpsCameraFacing = new Vector3(0f, mesh.localEulerAngles.y, 0f);
-                Cam.transform.localPosition = Vector3.up;
-                Cam.transform.localRotation = Quaternion.Euler(fpsCameraFacing);
-                Cam.orthographic = false;
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
                 Actions.OnShift?.Invoke(newMode);
                 break;
 
             case PLAYER_MODE.console:
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
                 Actions.OnShift?.Invoke(newMode);
                 break;
 
@@ -330,12 +206,12 @@ public class sPlayer : MonoBehaviour
     void HandlePlayerDeath()
     {
         IsDead = true;
-        ShiftModeTo(PLAYER_MODE.console, instant: true); //the robot's last view is its own error log
+        ApplyMode(PLAYER_MODE.console); //the robot's last view is its own error log
     }
 
     void HandleLevelComplete()
     {
         levelComplete = true;
-        ShiftModeTo(PLAYER_MODE.console, instant: true);
+        ApplyMode(PLAYER_MODE.console);
     }
 }

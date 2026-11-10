@@ -8,9 +8,9 @@ public class Actions
     public static Action<int> OnLevelLoadStarted;       //build index - loading screen is fading in
     public static Action<float> OnLevelLoadProgress;    //0-1, for a progress bar / text
     public static Action<int> OnLevelLoaded;            //build index - loading screen has faded out
-    public static Action<PLAYER_MODE, PLAYER_MODE> OnShiftStarted; //from, to - transition animations start
+
     public static Action<PLAYER_MODE> OnShift;          //mode has changed
-    public static Action<PLAYER_MODE> OnRequestShift;   //ask the player to change mode (e.g. console "exit")
+
     public static Action<string> OnConsoleLog;
     public static Action<string, AudioClip> OnComms;       //message, sound (null = HUD's default comms sound)
     public static Action<int, int> OnPlayerHealthChanged;  //current, max
